@@ -1,3 +1,11 @@
+import jsonData from './data.json';
+
+
+interface StatusLogEntry {
+  status: string;
+  timestamp: string;
+}
+
 /**
  * Calculates the ratio between the amount of time when status is AVAILABLE and
  * the amount of time between startDateTime inclusive and endDateTime exclusive.
@@ -5,8 +13,32 @@
  * @param endDateTime 
  */
 export function availability(startDateTime: Date, endDateTime: Date): number {
-  // do something
-  return 0;
+
+  const statusLog: StatusLogEntry[] = jsonData;
+
+  const filteredLog = statusLog.filter((entry) => {
+    const timestamp = new Date(entry.timestamp);
+    return timestamp >= startDateTime && timestamp < endDateTime;
+  });
+
+  const totalTime = endDateTime.getTime() - startDateTime.getTime();
+
+  const availableTime = filteredLog.reduce((acc, entry, index) => {
+    if (entry.status === "AVAILABLE") {
+      const nextEntry = filteredLog[index + 1];
+      const entryTime = new Date(entry.timestamp).getTime();
+      const nextEntryTime = nextEntry ? new Date(nextEntry.timestamp).getTime() : endDateTime.getTime();
+      const duration = nextEntryTime - entryTime;
+
+      return acc + duration;
+    } else {
+      return acc;
+    }
+  }, 0);
+
+  const ratio = availableTime / totalTime;
+
+  return ratio;
 }
 
 /**
