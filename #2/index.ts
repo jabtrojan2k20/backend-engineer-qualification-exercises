@@ -1,10 +1,12 @@
 import jsonData from './data.json';
-
+import fs from 'fs';
+import './generate-data';
 
 interface StatusLogEntry {
   status: string;
   timestamp: string;
 }
+
 
 /**
  * Calculates the ratio between the amount of time when status is AVAILABLE and
@@ -49,6 +51,45 @@ export function availability(startDateTime: Date, endDateTime: Date): number {
  * @param endDateTime 
  */
 export function outages(startDateTime: Date, endDateTime: Date): { type: 'PARTIAL' | 'MAJOR', timestamp: Date, duration: number }[] {
-  // do something
-  return [];
+  var outages = fs.readFileSync(__dirname + '/data.json', 'utf8'); 
+  const outagesData = JSON.parse(outages);
+  
+  const generatedOutages = [];
+
+  for (let i = 0; i < outagesData.length; i++) {
+    const outage = outagesData[i];
+    var timestamp = new Date(outage.timestamp);
+
+    if (timestamp >= startDateTime && timestamp < endDateTime) {
+      if (outage.status === "PARTIALLY_AVAILABLE" || outage.status === "MAJOR") {
+        let duration = 0;
+
+        // Calculate the duration of the outage
+        for (let j = i + 1; j < outagesData.length; j++) {
+          const nextOutage = outagesData[j];
+          const nextTimestamp = new Date(nextOutage.timestamp);
+
+          if (nextTimestamp < endDateTime) {
+            if (nextOutage.status === outage.status) {
+              duration += Math.abs(nextTimestamp.getTime() - timestamp.getTime()) / (1000 * 60);
+              timestamp = nextTimestamp;
+              i = j; // Update the index to skip processed outages
+            } else {
+              break; // End of the current outage type
+            }
+          } else {
+            break; // End of the specified time range
+          }
+        }
+        
+        generatedOutages.push({
+          type: outage.status as 'PARTIAL' | 'MAJOR',
+          timestamp,
+          duration
+        });
+      }
+    }
+  }
+
+  return generatedOutages;
 }
